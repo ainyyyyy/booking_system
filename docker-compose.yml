@@ -18,6 +18,7 @@ services:
    volumes:
      - static_volume:/app/web/staticfiles
      - media_volume:/app/web/mediafiles
+     - ./backend/backend:/app/web
 
    expose:
      - 8000
