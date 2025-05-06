@@ -1,3 +1,9 @@
 from django.contrib import admin
 
-# Register your models here.
+from .models import User
+from .models import Resource
+from .models import Booking
+
+admin.site.register(User)
+admin.site.register(Resource)
+admin.site.register(Booking)

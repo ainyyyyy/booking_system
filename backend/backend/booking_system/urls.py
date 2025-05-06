@@ -16,7 +16,14 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from easybook import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path("", views.index, name="index"),
+    path('bookings/<int:bookingID>/', views.bookings, name="bookings"),
+    path('users/<int:userID>/profile/', views.profile, name="profile"),
+    path('users/<int:userID>/bookings/', views.user_bookings, name="user_bookings"),
+    path('resources/<int:resourceID>/info/', views.resource_info, name="resource_info"),
+    path('resources/<int:resourceID>/calendar/', views.calendar, name="calendar"),
 ]
