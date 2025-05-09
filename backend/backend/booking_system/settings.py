@@ -12,19 +12,48 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+#from dotenv import load_dotenv
+
+
+# ------------------------------------------------------------------------------
+# Paths
+# ------------------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
+"""
+ENV_PATH = BASE_DIR / ".env"
+if ENV_PATH.exists():
+    load_dotenv(dotenv_path=ENV_PATH, override=False)
+else:
+    print(f"⚠️  .env file not found at {ENV_PATH}. Falling back to container env vars only.")
+"""
+
+# ------------------------------------------------------------------------------
+# Mandatory env variables helper (лучше упасть на старте, чем ловить NoneType позже)
+# ------------------------------------------------------------------------------
+def env(key: str, *, default: str | None = None, required: bool = False) -> str | None:
+    value = os.getenv(key, default)
+    if required and value is None:
+        raise RuntimeError(f"Environment variable '{key}' is required but not set.")
+    return value
+
+
+SECRET_KEY      = env("DJANGO_SECRET_KEY", required=True)
+DEBUG           = env("DEBUG", default="0") == "1"
+ALLOWED_HOSTS   = env("DJANGO_ALLOWED_HOSTS", default="127.0.0.1").split(",")
+
+EMAIL_BACKEND        = env("EMAIL_BACKEND", required=not DEBUG,
+                            default="django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST           = env("EMAIL_HOST",           default="localhost" if DEBUG else None)
+EMAIL_PORT           = int(env("EMAIL_PORT",       default="1025" if DEBUG else "587"))
+EMAIL_HOST_USER      = env("EMAIL_HOST_USER",      default="")
+EMAIL_HOST_PASSWORD  = env("EMAIL_HOST_PASSWORD",  default="")
+EMAIL_USE_TLS        = env("EMAIL_USE_TLS",        default="True").lower() == "true"
+
+
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
- 
-DEBUG = bool(os.environ.get("DEBUG", default=0))
- 
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS","127.0.0.1").split(",")
 
 
 # Application definition
@@ -74,12 +103,12 @@ WSGI_APPLICATION = 'booking_system.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': os.getenv('DATABASE_ENGINE'),
-        'NAME': os.getenv('DATABASE_NAME'),
-        'USER': os.getenv('DATABASE_USERNAME'),
-        'PASSWORD': os.getenv('DATABASE_PASSWORD', 'root'),
-        'HOST': os.getenv('DATABASE_HOST', 'localhost'),
-        'PORT': os.getenv('DATABASE_PORT', '5433'),
+        'ENGINE': env('DATABASE_ENGINE'),
+        'NAME': env('DATABASE_NAME'),
+        'USER': env('DATABASE_USERNAME'),
+        'PASSWORD': env('DATABASE_PASSWORD'),
+        'HOST': env('DATABASE_HOST'),
+        'PORT': env('DATABASE_PORT'),
     }
 }
 
@@ -133,3 +162,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CSRF_TRUSTED_ORIGINS = ["http://localhost:80"]
 
+CELERY_BROKER_URL = env("CELERY_BROKER_URL")
+CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND")
+
+
+if not DEBUG and EMAIL_BACKEND is None:
+    raise RuntimeError(
+        "EMAIL_BACKEND env var is not set. "
+        "Define it or leave DEBUG=True for console backend."
+    )

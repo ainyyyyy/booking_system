@@ -32,7 +32,6 @@ services:
      DATABASE_ENGINE: ${DATABASE_ENGINE}
      DATABASE_NAME: ${DATABASE_NAME}
      DATABASE_USERNAME: ${DATABASE_USERNAME}
- 
      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
      DATABASE_HOST: ${DATABASE_HOST}
      DATABASE_PORT: ${DATABASE_PORT}
@@ -46,6 +45,27 @@ services:
     - 80:80
    depends_on:
     - django-web
+  
+ celery:
+    build: backend/backend
+    command: celery -A booking_system worker --loglevel=DEBUG
+    volumes:
+      - ./backend/backend:/app/web
+    environment:
+      DEBUG: ${DEBUG}
+      SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS}
+      CELERY_BROKER: ${CELERY_BROKER_URL}
+      CELERY_BACKEND: ${CELERY_RESULT_BACKEND}
+    depends_on:
+      - django-web
+      - redis
+    env_file:
+    - .env
+
+
+ redis:
+    image: redis:7.4
 
 
 volumes:

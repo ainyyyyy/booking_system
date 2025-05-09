@@ -26,4 +26,5 @@ urlpatterns = [
     path('users/<int:userID>/bookings/', views.user_bookings, name="user_bookings"),
     path('resources/<int:resourceID>/info/', views.resource_info, name="resource_info"),
     path('resources/<int:resourceID>/calendar/', views.calendar, name="calendar"),
+    path('send/', views.run_task, name="run_task"),
 ]
