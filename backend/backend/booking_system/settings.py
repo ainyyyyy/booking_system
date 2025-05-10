@@ -60,6 +60,7 @@ EMAIL_USE_TLS        = env("EMAIL_USE_TLS",        default="True").lower() == "t
 
 INSTALLED_APPS = [
     'easybook.apps.EasybookConfig',
+    'rest_framework',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -171,3 +172,12 @@ if not DEBUG and EMAIL_BACKEND is None:
         "EMAIL_BACKEND env var is not set. "
         "Define it or leave DEBUG=True for console backend."
     )
+
+
+REST_FRAMEWORK = {
+    # Use Django's standard `django.contrib.auth` permissions,
+    # or allow read-only access for unauthenticated users.
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
+    ]
+}

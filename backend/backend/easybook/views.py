@@ -1,8 +1,11 @@
-#from django.shortcuts import render
+# from django.shortcuts import render
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from easybook.tasks import send_email_task
+from rest_framework import viewsets
+from easybook.models import Booking, User, Resource 
+from easybook.serializers import BookingSerializer, UserSerializer, ResourceSerializer 
 
 def index(request):
     return HttpResponse("Hi!")
@@ -24,11 +27,25 @@ def calendar(request, resourceID):
 
 @csrf_exempt
 def run_task(request):
-    #if request.POST:
-        #task_type = request.POST.get("type")
     task = send_email_task.delay(
-        "Subject", 
-        "Message", 
+        "Subject",
+        "Message",
         "konishchevslava03@gmail.com"
-        )
+    )
     return JsonResponse({"task_id": task.id}, status=202)
+
+
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    lookup_field = 'userID'
+
+class ResourceViewSet(viewsets.ModelViewSet):
+    queryset = Resource.objects.all()
+    serializer_class = ResourceSerializer
+    lookup_field = 'resourseID' 
+
+class BookingViewSet(viewsets.ModelViewSet):
+    queryset = Booking.objects.all()
+    serializer_class = BookingSerializer
+    lookup_field = 'bookingID' 

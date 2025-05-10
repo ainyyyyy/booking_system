@@ -15,16 +15,37 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from easybook import views
+from rest_framework import routers
+from django.conf import settings
+from django.conf.urls.static import static
+from django.contrib.staticfiles.urls import staticfiles_urlpatterns
+
+router = routers.DefaultRouter()
+# Register ViewSets
+router.register(r'users', views.UserViewSet, basename='user')
+router.register(r'resources', views.ResourceViewSet, basename='resource')
+router.register(r'bookings', views.BookingViewSet, basename='booking')
+
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path("", views.index, name="index"),
-    path('bookings/<int:bookingID>/', views.bookings, name="bookings"),
+    #path("", views.index, name="index"),
+    #path('bookings/<int:bookingID>/', views.bookings, name="bookings"),
     path('users/<int:userID>/profile/', views.profile, name="profile"),
     path('users/<int:userID>/bookings/', views.user_bookings, name="user_bookings"),
     path('resources/<int:resourceID>/info/', views.resource_info, name="resource_info"),
     path('resources/<int:resourceID>/calendar/', views.calendar, name="calendar"),
     path('send/', views.run_task, name="run_task"),
+    path('', include(router.urls)),
+
 ]
+
+if settings.DEBUG:
+    urlpatterns += staticfiles_urlpatterns()
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+
+
