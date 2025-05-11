@@ -12,9 +12,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
-#from dotenv import load_dotenv
+from dotenv import load_dotenv
 
-
+load_dotenv()
 # ------------------------------------------------------------------------------
 # Paths
 # ------------------------------------------------------------------------------
@@ -59,7 +59,7 @@ EMAIL_USE_TLS        = env("EMAIL_USE_TLS",        default="True").lower() == "t
 # Application definition
 
 INSTALLED_APPS = [
-    'easybook.apps.EasybookConfig',
+    #'easybook.apps.EasybookConfig',
     'rest_framework',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'easybook',
 ]
 
 MIDDLEWARE = [
@@ -102,17 +103,26 @@ WSGI_APPLICATION = 'booking_system.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': env('DATABASE_ENGINE'),
-        'NAME': env('DATABASE_NAME'),
-        'USER': env('DATABASE_USERNAME'),
-        'PASSWORD': env('DATABASE_PASSWORD'),
-        'HOST': env('DATABASE_HOST'),
-        'PORT': env('DATABASE_PORT'),
-    }
-}
 
+
+if env('IN_DOCKER', default="True") == "True":
+    DATABASES = {
+        'default': {
+            'ENGINE': env('DATABASE_ENGINE'),
+            'NAME': env('DATABASE_NAME'),
+            'USER': env('DATABASE_USERNAME'),
+            'PASSWORD': env('DATABASE_PASSWORD'),
+            'HOST': env('DATABASE_HOST'),
+            'PORT': env('DATABASE_PORT'),
+        }
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
+        }
+    }
 
 
 # Password validation

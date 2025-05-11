@@ -1,6 +1,8 @@
 from django.db import models
 
 class User(models.Model):
+    class Meta:
+        app_label = 'easybook'
     userID = models.IntegerField()
     email = models.CharField(max_length=50)
     name = models.CharField(max_length=20)
@@ -11,6 +13,8 @@ class User(models.Model):
 
 
 class Resource(models.Model):
+    class Meta:
+        app_label = 'easybook'
     resourseID = models.IntegerField()
     name = models.CharField(max_length=50)
     description = models.TextField(max_length=1000)
@@ -19,6 +23,8 @@ class Resource(models.Model):
         return self.name
 
 class Booking(models.Model):
+    class Meta:
+        app_label = 'easybook'
     bookingID = models.IntegerField()
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     resource = models.ForeignKey(Resource, on_delete=models.CASCADE)
