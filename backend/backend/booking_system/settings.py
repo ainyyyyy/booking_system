@@ -30,19 +30,18 @@ else:
 # ------------------------------------------------------------------------------
 # Mandatory env variables helper (лучше упасть на старте, чем ловить NoneType позже)
 # ------------------------------------------------------------------------------
-def env(key: str, *, default: str | None = None, required: bool = False) -> str | None:
-    value = os.getenv(key, default)
-    if required and value is None:
-        raise RuntimeError(f"Environment variable '{key}' is required but not set.")
+def env(key: str, *, default: str | None = None) -> str:
+    value = os.environ.get(key, default)
+    if value is None:
+        raise RuntimeError(f"Environment variable `{key}` is required but not set and no default was provided.")
     return value
 
 
-SECRET_KEY      = env("DJANGO_SECRET_KEY", required=True)
+SECRET_KEY      = env("DJANGO_SECRET_KEY")
 DEBUG           = env("DEBUG", default="0") == "1"
 ALLOWED_HOSTS   = env("DJANGO_ALLOWED_HOSTS", default="127.0.0.1").split(",")
 
-EMAIL_BACKEND        = env("EMAIL_BACKEND", required=not DEBUG,
-                            default="django.core.mail.backends.console.EmailBackend")
+EMAIL_BACKEND        = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
 EMAIL_HOST           = env("EMAIL_HOST",           default="localhost" if DEBUG else None)
 EMAIL_PORT           = int(env("EMAIL_PORT",       default="1025" if DEBUG else "587"))
 EMAIL_HOST_USER      = env("EMAIL_HOST_USER",      default="")
@@ -177,12 +176,12 @@ CELERY_BROKER_URL = env("CELERY_BROKER_URL")
 CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND")
 
 
-if not DEBUG and EMAIL_BACKEND is None:
+"""if not DEBUG and EMAIL_BACKEND is None:
     raise RuntimeError(
         "EMAIL_BACKEND env var is not set. "
         "Define it or leave DEBUG=True for console backend."
     )
-
+"""
 
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
