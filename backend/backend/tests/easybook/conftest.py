@@ -1,39 +1,47 @@
 import pytest
 #from django.urls import reverse
-from datetime import datetime
+#from datetime import datetime, date, time
 from easybook.models import Booking, User, Resource
 
 
 @pytest.fixture
 def user(db):
     return User.objects.create(
-        userID = 0,
-        email = "konishchevslava03@gmail.com",
-        name = "Vyacheslav",
-        surname = "Konischev",
+        email="am@g.com",
+        password="123",
+        first_name="Vyacheslav",
+        last_name="Konischev"
     )
 
-@pytest.fixture
+"""@pytest.fixture
 def resource(db):
     return Resource.objects.create(
-        resourseID = 0,
         name = "Coworking",
         description = "The best coworking in the world",
-        schedule = {            
-            "Mon": ["8:00", "18:00"], 
-            "Tue": ["10:00", "20:00"], 
-            "Wed": ["9:00", "19:30"], 
-            "Thu": ["9:00", "18:00"], 
-        },
+    )
+"""
+"""@pytest.fixture
+def daily_schedule(db, resource):
+    return DailySchedule.objects.create(
+        day = date(2025, 12, 28),
+        start_time = time(8, 00),
+        end_time = time(20, 30),
+        resource = resource,
+        max_capacity = 1,
     )
 
 @pytest.fixture
 def booking(db, user, resource):
     return Booking.objects.create(
-        bookingID = 0,
+        booking_id = 0,
         user = user,
         resource = resource,
         start_time = datetime(2025, 12, 28, 17, 55),
         end_time = datetime(2025, 12, 28, 23, 55),
         is_confirmed = True,
     )
+"""
+"""@pytest.fixture
+def api_client():
+   from rest_framework.test import APIClient
+   return APIClient()"""

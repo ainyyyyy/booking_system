@@ -1,12 +1,49 @@
-
 from django.db import models
 from django.contrib.postgres.constraints import ExclusionConstraint
 from django.contrib.postgres.fields import DateTimeRangeField
 from django.contrib.postgres.indexes import GistIndex
 from django.core.exceptions import ValidationError
 from django.db.models import Case, When, IntegerField, Q
+from django.conf import settings
+from django.contrib.auth.models import AbstractUser
+#from django.utils.translation import gettext_lazy as _
+from django.contrib.auth.base_user import BaseUserManager
 
-class User(models.Model):
+
+"""
+Migration sequence:
+- 0001_initial: comment every constraint
+- 0002: Create empty + Add extension
+- 0003: Uncomment constraints
+- 0004: Create empty + Add trigger
+"""
+
+"""
+0002:
+
+from django.contrib.postgres.operations import BtreeGistExtension
+from django.db import migrations
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('easybook', '0001_initial'),
+    ]
+
+    operations = [
+        BtreeGistExtension(),
+    ]
+
+"""
+
+"""
+0004:
+
+
+"""
+
+"""class User(models.Model):
     class Meta:
         app_label = 'easybook'
 
@@ -15,7 +52,64 @@ class User(models.Model):
     surname = models.CharField(max_length=50)
 
     def __str__(self) -> str:
-        return f'{self.name} {self.surname}'.strip()
+        return f'{self.name} {self.surname}'.strip()"""
+
+
+class CustomUserManager(BaseUserManager):
+    def create_user(
+        self,
+        email, 
+        password,
+        **extra_fields
+        ):
+        if not email:
+            raise ValueError("The Email must be set")
+        email = self.normalize_email(email) # lowercase the domain
+        user = self.model(
+            email=email,
+            **extra_fields
+        )
+        user.set_password(password) # hash raw password and set
+        user.save()
+        return user
+    
+    def create_superuser(
+        self,
+        email, 
+        password,
+        **extra_fields
+        ):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("is_active", True)
+        if extra_fields.get("is_staff") is not True:
+            raise ValueError(
+                "Superuser must have is_staff=True."
+            )
+        if extra_fields.get("is_superuser") is not True:
+            raise ValueError(
+                "Superuser must have is_superuser=True."
+            )
+        return self.create_user(
+            email, 
+            password,
+            **extra_fields
+        )
+
+
+class User(AbstractUser):
+    username = None
+    email = models.EmailField(unique=True)
+    phone_number = models.CharField(max_length=15, null=True)
+    date_of_birth = models.DateField(null=True)
+    organization_name = models.CharField(max_length=100, null=True)
+    organization_description = models.TextField(null=True)
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = []
+    objects = CustomUserManager()
+    def __str__(self):
+        return self.email
+    
 
 
 class Resource(models.Model):
@@ -24,7 +118,10 @@ class Resource(models.Model):
     """
     class Meta:
         app_label = 'easybook'
-
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE
+    )
     name = models.CharField(max_length=50, unique=True)
     description = models.TextField(blank=True)
     address = models.TextField(blank=True)
@@ -71,7 +168,7 @@ class AvailabilityRuleQuerySet(models.QuerySet):
         qs = self.for_resource(resource).for_day(day)
         if qs and qs.first().priority == 0:
             return qs.filter(priority=0)
-        return qs  # останутся только weekly
+        return qs  
         
 
 class AvailabilityRuleManager(models.Manager):
@@ -86,10 +183,7 @@ class AvailabilityRuleManager(models.Manager):
 
 class AvailabilityRule(models.Model):
     """
-    Определяет, когда ресурс открыт и какой длины слот.
-    Примеры:
-        • каждая среда с 10:00 до 18:00, продолжительность слота 60 мин
-        • единовременное окно 14.06.2025 09:00–13:00, продолжительность слота 30 мин
+    Определяет, когда сервис доступен и какой длины слот
     """
     class Meta:
         app_label = 'easybook'
@@ -98,23 +192,31 @@ class AvailabilityRule(models.Model):
             models.Index(fields=('specific_date',)),
         ]
 
-    resource = models.ForeignKey(Resource, on_delete=models.CASCADE, related_name='availability_rules')
+    resource = models.ForeignKey(
+        Resource, 
+        on_delete=models.CASCADE, 
+        related_name='availability_rules'
+    )
 
-    # Если правило повторяющееся — храним weekday (0..6). Если разовое - оставляем null и заполняем date.
+    # Если правило повторяющееся — храним день недели (0..6). 
+    # Если разовое - оставляем null и заполняем specific_date.
     weekday = models.PositiveSmallIntegerField(null=True, blank=True)
     specific_date = models.DateField(null=True, blank=True)
 
     start_time = models.TimeField()
     end_time = models.TimeField()
 
-    # Длина одного слота в минутах. 0 или null => произвольный интервал (user вводит начало/конец сам).
+    # Длина одного слота в минутах. 0 или null => 
+    # => произвольный интервал (user вводит начало/конец сам).
     slot_size = models.PositiveIntegerField(null=True, blank=True)
 
     objects = AvailabilityRuleManager()
 
     def clean(self):
         if self.start_time >= self.end_time:
-            raise ValidationError('`start_time` must be less than `end_time`.')
+            raise ValidationError(
+                '`start_time` must be less than `end_time`.'
+                )
         if bool(self.weekday is not None) == bool(self.specific_date):
             raise ValidationError(
                 'Either `weekday` OR `specific_date` must be set (exclusively).'
@@ -134,7 +236,8 @@ class CapacityWindow(models.Model):
     class Meta:
         app_label = 'easybook'
         indexes = [GistIndex(fields=('timerange',))]
-        # Не допускаем пересечения окон на одном ресурсе, чтобы емкость была однозначной
+        # Не допускаем пересечения окон на одном ресурсе, 
+        # чтобы емкость была однозначной
         constraints = [
             ExclusionConstraint(
                 name='prevent_capacity_windows_overlap',
@@ -145,8 +248,12 @@ class CapacityWindow(models.Model):
             )
         ]
 
-    resource = models.ForeignKey('Resource', on_delete=models.CASCADE, related_name='capacity_windows')
-    timerange = DateTimeRangeField(null=True, blank=True)                  # [start, end)
+    resource = models.ForeignKey(
+        Resource, 
+        on_delete=models.CASCADE, 
+        related_name='capacity_windows'
+    )
+    timerange = DateTimeRangeField(null=True, blank=True) # [start, end)
     capacity  = models.PositiveIntegerField()         
 
     def __str__(self):
@@ -170,13 +277,28 @@ class Booking(models.Model):
             )
         ]
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bookings')
-    resource = models.ForeignKey(Resource, on_delete=models.CASCADE, related_name='bookings')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
+        related_name='bookings'
+    )
+    resource = models.ForeignKey(
+        Resource, 
+        on_delete=models.CASCADE, 
+        related_name='bookings'
+    )
 
     timerange = DateTimeRangeField(null=True, blank=True)  # хранит [start, end)
 
     is_confirmed = models.BooleanField(default=False)
     quantity = models.PositiveIntegerField(default=1)  # сколько мест из capacity заняли
 
+    additional_info = models.TextField(blank=True, null=True)
+    """def clean(self):
+        if self.timerange is None or self.timerange.start is None or self.timerange.end is None:
+            raise ValidationError('`timerange` must be set with both start and end times.')
+        if self.timerange.lower >= self.timerange.upper:
+            raise ValidationError('`timerange.start` must be less than `timerange.end`.')
+"""
     def __str__(self) -> str:
         return f'{self.resource}: {self.timerange} by {self.user}'

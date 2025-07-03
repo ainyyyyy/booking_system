@@ -1,0 +1,13 @@
+"""import pytest
+from django.urls import reverse
+
+@pytest.mark.django_db
+def test_send_report(mailoutbox):
+   #client, user = auto_login_user()
+   url = reverse('send_email_confirmation')
+   response = client.post(url)
+   assert response.status_code == 201
+   assert len(mailoutbox) == 1
+   mail = mailoutbox[0]
+   assert mail.subject == f'Subject'
+   assert list(mail.to) == [user.email]"""
