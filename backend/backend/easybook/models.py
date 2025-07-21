@@ -100,10 +100,10 @@ class CustomUserManager(BaseUserManager):
 class User(AbstractUser):
     username = None
     email = models.EmailField(unique=True)
-    phone_number = models.CharField(max_length=15, null=True)
-    date_of_birth = models.DateField(null=True)
-    organization_name = models.CharField(max_length=100, null=True)
-    organization_description = models.TextField(null=True)
+    phone_number = models.CharField(max_length=15, null=True, blank=True)
+    date_of_birth = models.DateField(null=True, blank=True)
+    organization_name = models.CharField(max_length=100, null=True, blank=True)
+    organization_description = models.TextField(null=True, blank=True)
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
     objects = CustomUserManager()
@@ -111,13 +111,13 @@ class User(AbstractUser):
         return self.email
     
 
-
 class Resource(models.Model):
     """
     Базовая сущность, которую можно бронировать.
     """
     class Meta:
         app_label = 'easybook'
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE
@@ -231,7 +231,7 @@ class AvailabilityRule(models.Model):
 class CapacityWindow(models.Model):
     """
     Задаёт вместимость `capacity` на конкретный интервал времени.
-    Если пересекающихся окон нет, действует Resource.max_capacity.
+    Если окна не заданы, действует Resource.max_capacity.
     """
     class Meta:
         app_label = 'easybook'
