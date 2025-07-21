@@ -13,13 +13,15 @@ def user(db):
         last_name="Konischev"
     )
 
-"""@pytest.fixture
-def resource(db):
+@pytest.fixture
+def resource(db, user):
     return Resource.objects.create(
+        user = user,
         name = "Coworking",
         description = "The best coworking in the world",
+        max_capacity = 10
     )
-"""
+
 """@pytest.fixture
 def daily_schedule(db, resource):
     return DailySchedule.objects.create(
