@@ -62,6 +62,7 @@ jobs:
         DJANGO_ALLOWED_HOSTS: localhost
         DJANGO_SETTINGS_MODULE: "booking_system.settings"
       run: |
+        cd backend/backend
         coverage run -m pytest
     - name: Tests report
       run: coverage report
