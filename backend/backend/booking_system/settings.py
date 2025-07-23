@@ -42,7 +42,7 @@ DEBUG           = env("DEBUG", default="0") == "1"
 ALLOWED_HOSTS   = env("DJANGO_ALLOWED_HOSTS", default="127.0.0.1").split(",")
 
 EMAIL_BACKEND        = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
-EMAIL_HOST           = env("EMAIL_HOST",           default="localhost" if DEBUG else None)
+EMAIL_HOST           = env("EMAIL_HOST",           default="localhost")
 EMAIL_PORT           = int(env("EMAIL_PORT",       default="1025" if DEBUG else "587"))
 EMAIL_HOST_USER      = env("EMAIL_HOST_USER",      default="")
 EMAIL_HOST_PASSWORD  = env("EMAIL_HOST_PASSWORD",  default="")
@@ -103,8 +103,17 @@ WSGI_APPLICATION = 'booking_system.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 
-
-if env('IN_DOCKER', default="True") == "True":
+DATABASES = {
+    'default': {
+        'ENGINE': env('DATABASE_ENGINE', default='django.db.backends.postgresql'),
+        'NAME': env('DATABASE_NAME'),
+        'USER': env('DATABASE_USERNAME'),
+        'PASSWORD': env('DATABASE_PASSWORD'),
+        'HOST': env('DATABASE_HOST'),
+        'PORT': env('DATABASE_PORT'),
+    }
+}
+"""if env('IN_DOCKER', default="True") == "True":
     DATABASES = {
         'default': {
             'ENGINE': env('DATABASE_ENGINE'),
@@ -121,7 +130,7 @@ else:
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': ':memory:',
         }
-    }
+    }"""
 
 
 # Password validation
@@ -172,8 +181,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CSRF_TRUSTED_ORIGINS = ["http://localhost:80"]
 
-CELERY_BROKER_URL = env("CELERY_BROKER_URL")
-CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND")
+CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="")
+CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="")
 
 
 """if not DEBUG and EMAIL_BACKEND is None:
