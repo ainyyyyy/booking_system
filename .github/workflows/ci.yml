@@ -58,6 +58,9 @@ jobs:
         DATABASE_PASSWORD: postgres
         DATABASE_HOST: postgres
         DATABASE_PORT: 5432
+        DJANGO_LOGLEVEL: info
+        DJANGO_ALLOWED_HOSTS: localhost
+        DJANGO_SETTINGS_MODULE: "booking_system.settings"
       run: |
         coverage run -m pytest
     - name: Tests report
