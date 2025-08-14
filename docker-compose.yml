@@ -63,10 +63,8 @@ services:
     env_file:
     - .env
 
-
  redis:
     image: redis:7.4
-
 
 volumes:
    postgres_data:

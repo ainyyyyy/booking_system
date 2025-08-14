@@ -27,7 +27,7 @@ jobs:
           - 5432:5432
           
     strategy:
-      max-parallel: 4
+      max-parallel: 1
       matrix:
         python-version: [3.11, 3.12, 3.13]
         
@@ -43,6 +43,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r backend/backend/requirements.txt
         pip install flake8
+    - name: Wait for PostgreSQL
+      run: sleep 5
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
@@ -56,7 +58,7 @@ jobs:
         DATABASE_NAME: postgres
         DATABASE_USERNAME: postgres
         DATABASE_PASSWORD: postgres
-        DATABASE_HOST: postgres
+        DATABASE_HOST: localhost
         DATABASE_PORT: 5432
         DJANGO_LOGLEVEL: info
         DJANGO_ALLOWED_HOSTS: localhost
@@ -64,5 +66,4 @@ jobs:
       run: |
         cd backend/backend
         coverage run -m pytest
-    - name: Tests report
-      run: coverage report
+        coverage report
