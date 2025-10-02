@@ -225,7 +225,7 @@ class Resource(models.Model):
         on_delete=models.CASCADE,
         related_name='resources'
     )
-    owner = models.ForeignKey(
+    user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
