@@ -111,26 +111,172 @@ class User(AbstractUser):
         return self.email
     
 
+class Company(models.Model):
+    name = models.CharField(max_length=150)
+    description = models.TextField(blank=True)
+    url = models.URLField(blank=True, unique=True)
+    logo = models.ImageField(upload_to='media', blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        app_label = 'easybook'
+        indexes = [
+            models.Index(fields=('is_active',)),
+        ]
+        """constraints = [
+            models.UniqueConstraint(fields=['url'], name='uniq_company_url'),
+        ]
+"""
+    def __str__(self) -> str:
+        return self.name
+
+
+class CompanyMembership(models.Model):
+    """
+    Модель для связи компаний и пользоватей
+    """
+    class Meta:
+        app_label = 'easybook'
+        constraints = [
+            models.UniqueConstraint(fields=['company', 'user'], name='uniq_company_user_membership'),
+        ]
+        indexes = [
+            models.Index(fields=('company', 'is_active')),
+            models.Index(fields=('company', 'role')),
+        ]
+
+    class Role(models.TextChoices):
+        OWNER = "owner", "Owner"
+        ADMIN = "admin", "Admin"
+        STAFF = "staff", "Staff"
+        
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE
+    )
+    role = models.CharField(
+        max_length=20, 
+        choices=Role.choices, 
+        default=Role.STAFF
+    )
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self) -> str:
+        return f'{self.user} @ {self.company} ({self.role})'
+    
+
+class Staff(models.Model):
+    class Meta:
+        app_label = 'easybook'
+        indexes = [
+            models.Index(fields=('company', 'is_active')),
+            #models.Index(fields=('company', 'display_name')),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['company', 'user'],
+                name='uniq_company_user_as_staff',
+                condition=Q(user__isnull=False)
+            ),
+        ]
+
+    company = models.ForeignKey(
+        Company, 
+        on_delete=models.CASCADE, 
+        related_name='staff'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name='staff_profiles',
+        null=True,
+        blank=True,
+    )
+    display_name = models.CharField(max_length=100)
+    company_email = models.EmailField(null=True, blank=True)
+    company_phone = models.CharField(max_length=30, null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self) -> str:
+        return f'{self.display_name} ({self.company})'
+
+
 class Resource(models.Model):
     """
     Базовая сущность, которую можно бронировать.
     """
     class Meta:
         app_label = 'easybook'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['company', 'name'], 
+                name='uniq_resource_name_per_company'
+            ),
+        ]
+        indexes = [
+            models.Index(fields=('company',)),
+            #models.Index(fields=('company', 'name')),
+            #models.Index(fields=('company', 'max_capacity')),
+        ]
 
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE
+    company = models.ForeignKey(
+        Company,
+        on_delete=models.CASCADE,
+        related_name='resources'
     )
-    name = models.CharField(max_length=50, unique=True)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='owned_resources',
+    )
+    name = models.CharField(max_length=50)
     description = models.TextField(blank=True)
     address = models.TextField(blank=True)
-    site = models.URLField(blank=True)
+    url = models.URLField(blank=True)
     # если >1 — один и тот же слот могут занимать несколько человек
     max_capacity = models.PositiveIntegerField(default=1)
+    requires_staff = models.BooleanField(default=False)
+    
+    # Список сотрудников, которые оказывают услугу
+    staff_members = models.ManyToManyField(
+        Staff,
+        through='ResourceStaff',
+        related_name='resources',
+        blank=True
+    )
 
     def __str__(self) -> str:
         return self.name
+    
+
+class ResourceStaff(models.Model):
+    class Meta:
+        app_label = 'easybook'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['resource', 'staff'], 
+                name='uniq_resource_staff_pair'
+            ),
+        ]
+        indexes = [
+            models.Index(fields=('resource',)),
+            models.Index(fields=('staff',)),
+        ]
+
+    resource = models.ForeignKey(Resource, on_delete=models.CASCADE)
+    staff = models.ForeignKey(Staff, on_delete=models.CASCADE)
+
+    def clean(self):
+        if self.resource.company != self.staff.company:
+            raise ValidationError(
+                'Resource and Staff must belong to the same Company.'
+            )
+
+    def __str__(self) -> str:
+        return f'{self.resource} — {self.staff}'
 
 
 class AvailabilityRuleQuerySet(models.QuerySet):
@@ -160,10 +306,9 @@ class AvailabilityRuleQuerySet(models.QuerySet):
         """
         Итоговые правила, которые действуют в определенный день.
 
-        Алгоритм:
-            1. Если есть хотя бы одно правило на конкретную дату
+        - Если есть хотя бы одно правило на конкретную дату
                — возвращаем только их.
-            2. Иначе — weekly-rules.
+        - Иначе — weekly-rules.
         """
         qs = self.for_resource(resource).for_day(day)
         if qs and qs.first().priority == 0:
@@ -175,15 +320,13 @@ class AvailabilityRuleManager(models.Manager):
     def get_queryset(self):
         return AvailabilityRuleQuerySet(self.model, using=self._db)
 
-    # фасад к основной функции, чтобы вызывать прямо так:
-    # AvailabilityRule.objects.effective_for_day(resource, date)
     def effective_for_day(self, resource, day):
         return self.get_queryset().effective_for_day(resource, day)
 
 
 class AvailabilityRule(models.Model):
     """
-    Определяет, когда сервис доступен и какой длины слот
+    Определяет, когда услуга доступна и какой длины слот
     """
     class Meta:
         app_label = 'easybook'
@@ -228,6 +371,7 @@ class AvailabilityRule(models.Model):
         return f'Rule {self.pk}: {self.specific_date} {self.start_time}-{self.end_time}'
 
 
+# TODO: Добавить переменную capacity для отдельных сотрудников
 class CapacityWindow(models.Model):
     """
     Задаёт вместимость `capacity` на конкретный интервал времени.
@@ -268,13 +412,21 @@ class Booking(models.Model):
         ]
         constraints = [
             ExclusionConstraint(
-                name='prevent_overlap_for_the_same_user',
+                name='prevent_overlap_for_the_same_user_and_resource',
                 expressions=(
                     ('user', '='),
                     ('resource', '='),
                     ('timerange', '&&'),
                 ),
-            )
+            ),
+            ExclusionConstraint(
+                name='prevent_staff_double_booking',
+                expressions=(
+                    ('staff', '='),
+                    ('timerange', '&&'),
+                ),
+                condition=Q(staff__isnull=False),
+            ),
         ]
 
     user = models.ForeignKey(
@@ -287,18 +439,47 @@ class Booking(models.Model):
         on_delete=models.CASCADE, 
         related_name='bookings'
     )
-
+    staff = models.ForeignKey(
+        Staff,
+        on_delete=models.PROTECT,
+        related_name='bookings',
+        null=True,
+        blank=True,
+    )
     timerange = DateTimeRangeField(null=True, blank=True)  # хранит [start, end)
-
     is_confirmed = models.BooleanField(default=False)
     quantity = models.PositiveIntegerField(default=1)  # сколько мест из capacity заняли
-
     additional_info = models.TextField(blank=True, null=True)
-    """def clean(self):
-        if self.timerange is None or self.timerange.start is None or self.timerange.end is None:
+    def clean(self):
+        """if self.timerange is None or self.timerange.start is None or self.timerange.end is None:
             raise ValidationError('`timerange` must be set with both start and end times.')
         if self.timerange.lower >= self.timerange.upper:
             raise ValidationError('`timerange.start` must be less than `timerange.end`.')
 """
+        # Если ресурс требует выбора сотрудника — staff обязателен
+        if self.resource.requires_staff and not self.staff:
+            raise ValidationError(
+                'This resource requires selecting a staff member.'
+            )
+
+        # Если указан сотрудник — он должен быть из той же компании 
+        if self.staff:
+            if self.resource.company != self.staff.company:
+                raise ValidationError(
+                    'Selected staff must belong to the same company' \
+                    ' as the resource.'
+                    )
+            # Проверка принадлежности сотрудника к услуге
+            if not ResourceStaff.objects.filter(
+                resource_id=self.resource, 
+                staff_id=self.staff
+            ).exists():
+                raise ValidationError(
+                    'Selected staff is not assigned to this resource.'
+                )
+            
     def __str__(self) -> str:
-        return f'{self.resource}: {self.timerange} by {self.user}'
+        base = f'{self.resource}: {self.timerange} by {self.user}'
+        if self.staff:
+            base += f' (staff: {self.staff.display_name})'
+        return base
