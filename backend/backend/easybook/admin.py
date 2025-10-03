@@ -10,8 +10,8 @@ from django.utils.html import format_html
 
 @admin.register(Resource)
 class ResourceAdmin(admin.ModelAdmin):
-    list_display = ('name', 'address', 'site', 'max_capacity')
-    list_filter = ('site', 'max_capacity')
+    list_display = ('name', 'address', 'url', 'max_capacity')
+    list_filter = ('url', 'max_capacity')
 
     fieldsets = (
         (None, {
@@ -27,7 +27,7 @@ class ResourceAdmin(admin.ModelAdmin):
                 'user', 
                 'description', 
                 'address', 
-                'site', 
+                'url', 
                 'max_capacity'
             )
         }),

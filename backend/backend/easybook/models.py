@@ -9,7 +9,6 @@ from django.contrib.auth.models import AbstractUser
 #from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.base_user import BaseUserManager
 
-
 """
 Migration sequence:
 - 0001_initial: comment every constraint
@@ -223,7 +222,8 @@ class Resource(models.Model):
     company = models.ForeignKey(
         Company,
         on_delete=models.CASCADE,
-        related_name='resources'
+        related_name='resources',
+        null=True
     )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,

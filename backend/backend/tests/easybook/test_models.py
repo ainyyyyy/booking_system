@@ -1,6 +1,6 @@
 from datetime import datetime, time, date
 import pytest
-from easybook.models import CapacityWindow, AvailabilityRule, Booking, Resource
+from easybook.models import CapacityWindow, AvailabilityRule, Booking, Resource, Company
 from django.core.exceptions import ValidationError
 #from psycopg2.extras import DateTimeTZRange
 from django.db.utils import IntegrityError
@@ -21,8 +21,9 @@ def test_user(user):
     assert user.last_name == "Konischev"
 
 @pytest.mark.django_db
-def test_create_weekly_rule(user):
+def test_create_weekly_rule(user, company):
     resource = Resource.objects.create(
+        company=company,
         user=user,
         name="Coworking",
         description="The best coworking in the world"
@@ -49,9 +50,7 @@ def test_create_weekly_rule(user):
     assert str(saved_rule).startswith(f'Rule {rule.pk}: wd=0 10:00:00-18:00:00')
 
 @pytest.mark.django_db
-def test_create_rule_with_equal_start_and_end_time(user):
-    resource = Resource.objects.create(user=user, name="Conference Room B")
-
+def test_create_rule_with_equal_start_and_end_time(resource):
     with pytest.raises(ValidationError) as excinfo:
         rule = AvailabilityRule(
             resource=resource,
@@ -65,8 +64,7 @@ def test_create_rule_with_equal_start_and_end_time(user):
     assert "`start_time` must be less than `end_time`." in str(excinfo.value)
 
 @pytest.mark.django_db
-def test_validation_fails_both_weekday_and_specific_date_set(user):
-    resource = Resource.objects.create(user=user, name="Test Resource")
+def test_validation_fails_both_weekday_and_specific_date_set(resource):
     rule = AvailabilityRule(
         resource=resource,
         weekday=1,
@@ -81,8 +79,7 @@ def test_validation_fails_both_weekday_and_specific_date_set(user):
         rule.clean()
 
 @pytest.mark.django_db
-def test_cascade_deletion_removes_rules(user):
-    resource = Resource.objects.create(user=user, name='Test Resource')
+def test_cascade_deletion_removes_rules(resource):
     rule = AvailabilityRule.objects.create(
         resource=resource,
         weekday=1,
@@ -94,7 +91,6 @@ def test_cascade_deletion_removes_rules(user):
 
 @pytest.mark.django_db
 def test_specific_date_priority(user, resource):
-    resource = Resource.objects.create(user=user, name='Test Resource')
     rule1 = AvailabilityRule.objects.create(
         resource=resource,
         specific_date=date(2025, 7, 19),
@@ -117,7 +113,7 @@ def test_specific_date_priority(user, resource):
     assert rules[0].start_time == time(9, 0)
 
 @pytest.mark.django_db(transaction=True)
-def test_capacity_window_exclusion_constraint(user, resource):
+def test_capacity_window_exclusion_constraint(resource, other_resource):
     start1 = make_aware(datetime(2025, 1, 1, 10, 0))
     end1 = make_aware(datetime(2025, 1, 1, 12, 0))
     range1 = DateTimeTZRange(start1, end1)
@@ -159,12 +155,6 @@ def test_capacity_window_exclusion_constraint(user, resource):
 
     assert CapacityWindow.objects.filter(resource=resource).count() == 2
 
-    other_resource = Resource.objects.create(
-        user=user, 
-        name='Another Coworking', 
-        max_capacity=20
-    )
-
     try:
         CapacityWindow.objects.create(
             resource=other_resource, 
@@ -181,7 +171,7 @@ def test_capacity_window_exclusion_constraint(user, resource):
     assert CapacityWindow.objects.filter(resource=other_resource).count() == 1
 
 @pytest.mark.django_db(transaction=True)
-def test_booking_exclusion_constraint(user, resource):
+def test_booking_exclusion_constraint(user, resource, other_resource):
     start1 = make_aware(datetime(2025, 1, 1, 10, 0))
     end1 = make_aware(datetime(2025, 1, 1, 12, 0))
     range1 = DateTimeTZRange(start1, end1)
@@ -204,12 +194,6 @@ def test_booking_exclusion_constraint(user, resource):
         )
 
     assert 'prevent_overlap_for_the_same_user' in str(excinfo.value).lower()
-
-    other_resource = Resource.objects.create(
-        user=user, 
-        name='Another Coworking', 
-        max_capacity=20
-    )
 
     try:
         Booking.objects.create(
