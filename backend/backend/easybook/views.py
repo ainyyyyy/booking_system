@@ -26,7 +26,7 @@ def calendar(request, resourceID):
     return HttpResponse(" %s." % resourceID)
 
 @csrf_exempt
-def run_task(request):
+def send_email_confirmation(request):
     task = send_email_task.delay(
         "Subject",
         "Message",
