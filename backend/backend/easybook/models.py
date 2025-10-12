@@ -113,7 +113,7 @@ class User(AbstractUser):
 class Company(models.Model):
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True)
-    url = models.URLField(blank=True, unique=True)
+    url = models.URLField(null=True, unique=True)
     logo = models.ImageField(upload_to='media', blank=True)
     is_active = models.BooleanField(default=True)
 
@@ -201,6 +201,50 @@ class Staff(models.Model):
         return f'{self.display_name} ({self.company})'
 
 
+class Category(models.Model):
+    class Meta:
+        app_label = 'easybook'
+        indexes = [
+            models.Index(fields=('company', 'parent', 'is_active', 'sort_order')),
+            # models.Index(fields=('company', 'is_active')),
+            # models.Index(fields=('company', 'sort_order')),
+        ]
+        constraints = [
+            # Не допускаем дубликаты имён в пределах одного родителя
+            models.UniqueConstraint(
+                fields=['company', 'parent', 'name'],
+                name='uniq_sibling_category_name_per_company'
+            ),
+        ]
+
+    company = models.ForeignKey(
+        Company,
+        on_delete=models.CASCADE,
+        related_name='resource_categories'
+    )
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='children'
+    )
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=120)
+    description = models.TextField(blank=True)
+    # Приоритет - по возрастанию
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    def clean(self):
+        # Нельзя назначить в потомки категорию из другой компании
+        if self.parent and self.parent.company_id != self.company_id:
+            raise ValidationError('Parent category must belong to the same company.')
+
+    def __str__(self) -> str:
+        return f'{self.name} ({self.company})'    
+
+
 class Resource(models.Model):
     """
     Базовая сущность, которую можно бронировать.
@@ -219,11 +263,25 @@ class Resource(models.Model):
             #models.Index(fields=('company', 'max_capacity')),
         ]
 
+    class Pricing(models.TextChoices):
+        PER_SERVICE = "per service", "Per service"
+        PER_MINUTE = "per minute", "Per minute"
+        PER_HOUR = "per hour", "Per hour"
+        PER_DAY = "per day", "Per day"
+
+    name = models.CharField(max_length=50)
+    description = models.TextField(blank=True)
     company = models.ForeignKey(
         Company,
         on_delete=models.CASCADE,
         related_name='resources',
         null=True
+    )
+    category = models.ManyToManyField(
+        Category,
+        through='ResourceCategory',
+        blank=True,
+        related_name='resources',
     )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -232,14 +290,31 @@ class Resource(models.Model):
         blank=True,
         related_name='owned_resources',
     )
-    name = models.CharField(max_length=50)
-    description = models.TextField(blank=True)
     address = models.TextField(blank=True)
     url = models.URLField(blank=True)
     # если >1 — один и тот же слот могут занимать несколько человек
     max_capacity = models.PositiveIntegerField(default=1)
     requires_staff = models.BooleanField(default=False)
-    
+    price = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        null=True, 
+        blank=True
+    )
+    pricing = models.CharField(
+        max_length=20, 
+        choices=Pricing.choices, 
+        null=True, 
+        blank=True
+    )
+    # Для акций (при null - акции нет)
+    old_price = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        null=True, 
+        blank=True
+    )
+    is_active = models.BooleanField(default=True)
     # Список сотрудников, которые оказывают услугу
     staff_members = models.ManyToManyField(
         Staff,
@@ -248,9 +323,42 @@ class Resource(models.Model):
         blank=True
     )
 
+    def clean(self):
+        if self.price and self.old_price and self.price >= self.old_price:
+            raise ValidationError(
+                '`price` must be lower than `old_price`.'
+                )
+
     def __str__(self) -> str:
         return self.name
     
+
+class ResourceCategory(models.Model):
+    class Meta:
+        app_label = 'easybook'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['resource', 'category'], 
+                name='uniq_resource_category_pair'
+            ),
+        ]
+        indexes = [
+            models.Index(fields=('resource',)),
+            models.Index(fields=('category',)),
+        ]
+
+    resource = models.ForeignKey(Resource, on_delete=models.CASCADE)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE)
+
+    def clean(self):
+        if self.resource.company != self.category.company:
+            raise ValidationError(
+                'Resource and Category must belong to the same Company.'
+            )
+
+    def __str__(self) -> str:
+        return f'{self.resource} — {self.category}'
+
 
 class ResourceStaff(models.Model):
     class Meta:
@@ -469,9 +577,11 @@ class Booking(models.Model):
                     'Selected staff must belong to the same company' \
                     ' as the resource.'
                     )
+            
+            # TODO: тесты
             # Проверка принадлежности сотрудника к услуге
             if not ResourceStaff.objects.filter(
-                resource_id=self.resource, 
+                resource_id=self.resource,
                 staff_id=self.staff
             ).exists():
                 raise ValidationError(
