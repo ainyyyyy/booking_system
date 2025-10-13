@@ -1,7 +1,7 @@
 import pytest
 #from django.urls import reverse
 #from datetime import datetime, date, time
-from easybook.models import Booking, User, Resource, Company
+from easybook.models import Booking, User, Resource, Company, Staff, ResourceStaff
 
 
 @pytest.fixture
@@ -17,6 +17,12 @@ def user(db):
 def company(db):
     return Company.objects.create(
         name = "Company_name"
+    )
+
+@pytest.fixture
+def other_company(db):
+    return Company.objects.create(
+        name = "Other_company_name"
     )
 
 @pytest.fixture
@@ -38,7 +44,21 @@ def other_resource(db, user, company):
         max_capacity=20
     )
 
+@pytest.fixture
+def staff(db, user, company):
+    return Staff.objects.create(
+        user=user,
+        company=company,
+        display_name = "John Doe"
+    )
 
+@pytest.fixture
+def other_company_staff(db, user, other_company):
+    return Staff.objects.create(
+        user=user,
+        company=other_company,
+        display_name = "Jane Doe"
+    )
 
 """@pytest.fixture
 def daily_schedule(db, resource):

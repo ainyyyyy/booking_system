@@ -238,7 +238,7 @@ class Category(models.Model):
 
     def clean(self):
         # Нельзя назначить в потомки категорию из другой компании
-        if self.parent and self.parent.company_id != self.company_id:
+        if self.parent and self.parent.company != self.company:
             raise ValidationError('Parent category must belong to the same company.')
 
     def __str__(self) -> str:
@@ -578,7 +578,6 @@ class Booking(models.Model):
                     ' as the resource.'
                     )
             
-            # TODO: тесты
             # Проверка принадлежности сотрудника к услуге
             if not ResourceStaff.objects.filter(
                 resource_id=self.resource,

@@ -206,3 +206,47 @@ def test_booking_exclusion_constraint(user, resource, other_resource):
             "Создание примыкающего Booking для другого ресурса" \
             " не должно вызывать IntegrityError."
         )
+
+@pytest.mark.django_db
+def test_booking_validation_fails_staff_not_assigned(
+    user, 
+    resource, 
+    staff
+):
+    start = make_aware(datetime(2025, 1, 1, 10, 0))
+    end = make_aware(datetime(2025, 1, 1, 12, 0))
+    rng = DateTimeTZRange(start, end)
+
+    booking = Booking.objects.create(
+        user=user,
+        resource=resource,
+        staff=staff,
+        timerange=rng, 
+    )
+
+    with pytest.raises(ValidationError) as excinfo:
+        booking.clean()
+    
+    assert 'Selected staff is not assigned to this resource.' in str(excinfo.value)
+
+@pytest.mark.django_db
+def test_validation_fails_staff_from_another_company(
+    user, 
+    resource, 
+    other_company_staff
+):
+    start = make_aware(datetime(2025, 1, 1, 10, 0))
+    end = make_aware(datetime(2025, 1, 1, 12, 0))
+    rng = DateTimeTZRange(start, end)
+
+    booking = Booking.objects.create(
+        user=user,
+        resource=resource,
+        staff=other_company_staff,
+        timerange=rng, 
+    )
+
+    with pytest.raises(ValidationError) as excinfo:
+        booking.clean()
+    
+    assert 'Selected staff must belong to the same company' in str(excinfo.value)
