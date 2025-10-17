@@ -2,34 +2,106 @@ import * as React from 'react';
 //import Link from '@mui/material/Link';
 //import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
 //import Typography from '@mui/material/Typography';
+import Header from './components/BookingHeader.tsx';
+import { styled } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
-import Header from './components/BookingHeader';
+import MenuItem from '@mui/material/MenuItem';
+import Grid from '@mui/material/Grid';
+import Divider, { dividerClasses } from '@mui/material/Divider';
+import Drawer from '@mui/material/Drawer';
+import ListItem from '@mui/material/ListItem';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemText from '@mui/material/ListItemText';
+import List from '@mui/material/List';
+import Toolbar from '@mui/material/Toolbar';
+import Container from '@mui/material/Container';
+import Typography from '@mui/material/Typography';
+import InboxIcon from '@mui/icons-material/Inbox';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import { Outlet } from 'react-router';
 
-// function LightBulbIcon(props: SvgIconProps) {
-//   return (
-//     <SvgIcon {...props}>
-//       <path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-2.3l-.85-.6C7.8 12.16 7 10.63 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.16-2.15 4.1z" />
-//     </SvgIcon>
-//   );
-// }
 
+// const StyledBox = styled('div')(({ theme }) => ({
+//   alignSelf: 'center',
+//   width: '100%',
+//   height: 400,
+//   marginTop: theme.spacing(8),
+//   borderRadius: (theme.vars || theme).shape.borderRadius,
+//   outline: '6px solid',
+//   outlineColor: 'hsla(220, 25%, 80%, 0.2)',
+//   border: '1px solid',
+//   borderColor: (theme.vars || theme).palette.grey[200],
+//   boxShadow: '0 0 12px 8px hsla(220, 25%, 80%, 0.2)',
+//   backgroundImage: `https://mui.com'/static/screenshots/material-ui/getting-started/templates/dashboard.jpg`,
+//   backgroundSize: 'cover',
+//   [theme.breakpoints.up('sm')]: {
+//     marginTop: theme.spacing(10),
+//     height: 700,
+//   },
+//   ...theme.applyStyles('dark', {
+//     boxShadow: '0 0 24px 12px hsla(210, 100%, 25%, 0.2)',
+//     backgroundImage: `https://mui.com/static/screenshots/material-ui/getting-started/templates/dashboard-dark.jpg`,
+//     outlineColor: 'hsla(220, 20%, 42%, 0.1)',
+//     borderColor: (theme.vars || theme).palette.grey[700],
+//   }),
+// }));
 
+const drawerWidth = 480;
 
 export default function Layout() {
-  const layoutRef = React.useRef<HTMLDivElement>(null);
   return (
-    <Header />
-    // <Box
-    //   ref={layoutRef}
-    //   sx={{
-    //     position: 'relative',
-    //     display: 'flex',
-    //     overflow: 'hidden',
-    //     height: '100%',
-    //     width: '100%',
-    //   }}
-    // >
-    //   <Header />
-    // </Box>
+    <Box
+      sx={(theme) => ({
+        display: 'flex',
+        '--header-gap': theme.spacing(3.5),
+        '--header-spacing': 'calc(var(--template-frame-height, 0px) + 28px)',
+        '--header-total-height': 'calc(48px + 2 * var(--header-spacing))',
+      })}
+    >
+      <CssBaseline />
+      <Header />
+      <Drawer
+        sx={{
+          width: drawerWidth,
+          flexShrink: 0,
+          [`& .MuiDrawer-paper`]: { width: drawerWidth, boxSizing: 'border-box' },
+        }}
+        variant="permanent"
+        // anchor="left"
+      >
+        <Box sx={{ height: 'var(--header-total-height)' }} />
+        <Container
+          maxWidth="lg"
+          component="main"
+          sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+        >
+          <Box sx={{ overflow: 'auto' }}>
+            <List>
+              {['Inbox', 'Starred', 'Send email', 'Drafts'].map((text) => (
+                <ListItem key={text} disablePadding>
+                  <ListItemButton>
+                    <ListItemIcon>
+                      <InboxIcon />
+                    </ListItemIcon>
+                    <Typography variant="h5" gutterBottom>
+                      {text}
+                    </Typography>
+                    {/* <ListItemText primary={text} /> */}
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </List>
+          </Box>
+        </Container>
+      </Drawer>
+      <Box
+        component="main"
+        sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` } }}
+      >
+        <Box sx={{ height: 'var(--header-total-height)' }} />
+        <Outlet />
+      </Box>
+    </Box>
   );
 }

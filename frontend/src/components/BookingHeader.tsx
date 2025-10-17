@@ -1,86 +1,72 @@
 import * as React from 'react';
 import AppBar from '@mui/material/AppBar';
-import Box from '@mui/material/Box';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import Button from '@mui/material/Button';
 import AdbIcon from '@mui/icons-material/Adb';
-import Stack from '@mui/material/Stack';
+import { styled, alpha } from '@mui/material/styles';
 
 
-const pages = ['Products', 'Pricing', 'Blog'];
+const StyledToolbar = styled(Toolbar)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexShrink: 0,
+  borderRadius: `calc(${theme.shape.borderRadius}px + 8px)`,
+  backdropFilter: 'blur(24px)',
+  border: '1px solid',
+  borderColor: (theme.vars || theme).palette.divider,
+  backgroundColor: theme.vars
+    ? `rgba(${theme.vars.palette.background.defaultChannel} / 0.4)`
+    : alpha(theme.palette.background.default, 0.4),
+  boxShadow: (theme.vars || theme).shadows[1],
+  padding: '8px 12px',
+}));
 
-function ResponsiveAppBar() {
-  const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(null);
-
-  const handleCloseNavMenu = () => {
-    setAnchorElNav(null);
-  };
+function BookingHeader() {
   return (
-    <AppBar position="static">
+    <AppBar
+      position="fixed"
+      enableColorOnDark
+      sx={{
+        zIndex: (t) => t.zIndex.drawer + 1,
+        boxShadow: 0,
+        bgcolor: 'transparent',
+        backgroundImage: 'none',
+        mt: 'var(--header-spacing)',
+      }}
+    >
       <Container maxWidth="xl">
-        <Toolbar sx={{ backgroundColor: 'inherit', mx: { xs: -0.75, sm: -1 } }}>
+        <StyledToolbar variant="dense" disableGutters>
           <AdbIcon sx={{ display: { xs: 'none', md: 'flex' }, mr: 1 }} />
           <Typography
-            variant="h6"
+            variant="h4"
             noWrap
-            component="a"
-            href="#app-bar-with-responsive-menu"
-            sx={{
-              mr: 2,
-              display: { xs: 'none', md: 'flex' },
-              fontFamily: 'monospace',
-              fontWeight: 700,
-              letterSpacing: '.3rem',
-              color: 'inherit',
-              textDecoration: 'none',
-            }}
+            component="div" 
+            sx={{ flexGrow: 1 }}
           >
-            EASYBOOK
+            easybook
           </Typography>
-          <AdbIcon sx={{ display: { xs: 'flex', md: 'none' }, mr: 1 }} />
-          <Typography
-            variant="h5"
-            noWrap
-            component="a"
-            href="#app-bar-with-responsive-menu"
-            sx={{
-              mr: 2,
-              display: { xs: 'flex', md: 'none' },
-              flexGrow: 1,
-              fontFamily: 'monospace',
-              fontWeight: 700,
-              letterSpacing: '.3rem',
-              color: 'inherit',
-              textDecoration: 'none',
-            }}
-          >
-            EASYBOOK
-          </Typography>
-          <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>
-            <Stack
-              direction="row"
-              spacing={0}
-              sx={{
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              {pages.map((page) => (
-                <Button
-                  key={page}
-                  onClick={handleCloseNavMenu}
-                  sx={{ my: 2, color: 'white', display: 'block' }}
-                >
-                  {page}
-                </Button>
-              ))}
-            </Stack>
-          </Box>
-        </Toolbar>
+          <Button color="primary" variant="text" size="small">
+            Sign in
+          </Button>
+          <Button color="primary" variant="contained" size="small">
+            Sign up
+          </Button>
+          {/* <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>            
+            {pages.map((page) => (
+              <Button
+                key={page}
+                sx={{ my: 2, color: 'white', display: 'block' }}
+              >
+                {page}
+              </Button>
+            ))}
+          </Box> */}
+        </StyledToolbar>
       </Container>
     </AppBar>
   );
 }
-export default ResponsiveAppBar;
+export default BookingHeader;
