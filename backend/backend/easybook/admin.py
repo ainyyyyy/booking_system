@@ -1,17 +1,90 @@
 from django.contrib import admin
-from .models import Resource
-from .models import Booking
 from django.contrib.auth.admin import UserAdmin
-from .models import User, AvailabilityRule, CapacityWindow
+from .models import (
+    User,
+    AvailabilityRule,
+    CapacityWindow,
+    Company,
+    Booking,
+    Resource,
+    Category
+)
 from .forms import CustomUserChangeForm, CustomUserCreationForm
 from django.urls import reverse
 from django.utils.html import format_html
+from django.contrib.postgres.forms import RangeWidget, DateTimeRangeField
+from django.forms import ModelForm
+from django.contrib.admin.widgets import AdminSplitDateTime
+
+
+class CombinedDateTimeRangeField(DateTimeRangeField):
+    def combine(self, value):
+        if (
+            value 
+            and len(value)==2
+            and len(value[0])==2
+            and value[0][0]
+            and value[0][1]
+            and len(value[1])==2
+            and value[1][0]
+            and value[1][1]
+        ):
+            return [
+                f"{value[0][0]}T{value[0][1]}", 
+                f"{value[1][0]}T{value[1][1]}"
+            ]
+        return [None, None]
+
+    def clean(self, value):
+        value = self.combine(value)
+        return super().clean(value)
+
+    def has_changed(self, initial, data):
+        data = self.combine(data)
+        return super().has_changed(initial, data)
+
+
+class BookingForm(ModelForm):
+    timerange = CombinedDateTimeRangeField(widget=RangeWidget(AdminSplitDateTime))
+    class Meta:
+        model = Booking
+        fields = "__all__"
+
+
+# @admin.register(Company)
+# class CompanyAdmin(admin.ModelAdmin):
+#     list_display = (
+#         'name', 
+#         'description', 
+#         'logo', 
+#         'is_active',
+#     )
+#     list_filter = ('name', 'is_active')
+
+
+# @admin.register(Category)
+# class CategoryAdmin(admin.ModelAdmin):
+#     list_display = (
+#         'company', 
+#         'parent', 
+#         'name',
+#         'description',
+#         'sort_order',
+#         'is_active',
+#     )
+#     list_filter = (
+#         'name', 
+#         'company',
+#         'parent',
+#         'sort_order',
+#         'is_active'
+#     )
 
 
 @admin.register(Resource)
 class ResourceAdmin(admin.ModelAdmin):
-    list_display = ('name', 'address', 'url', 'max_capacity')
-    list_filter = ('url', 'max_capacity')
+    list_display = ('name', 'max_capacity')
+    list_filter = ('max_capacity',)
 
     fieldsets = (
         (None, {
@@ -25,9 +98,7 @@ class ResourceAdmin(admin.ModelAdmin):
             'fields': (
                 'name', 
                 'user', 
-                'description', 
-                'address', 
-                'url', 
+                'description',
                 'max_capacity'
             )
         }),
@@ -37,8 +108,6 @@ class ResourceAdmin(admin.ModelAdmin):
         'view_availability_rules_link', 
         'view_capacity_windows_link'
     )
-
-
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -85,14 +154,15 @@ class ResourceAdmin(admin.ModelAdmin):
 
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
+    form = BookingForm
     list_display = (
         'user', 
-        'resource', 
-        'timerange', 
+        'resource',
         'is_confirmed', 
         'quantity'
     )
     list_filter = ('resource', 'user')
+
 
 @admin.register(AvailabilityRule)
 class AvailabilityRuleAdmin(admin.ModelAdmin):
@@ -105,6 +175,7 @@ class AvailabilityRuleAdmin(admin.ModelAdmin):
         'slot_size'
         )
     list_filter = ('resource',)
+
 
 @admin.register(CapacityWindow)
 class CapacityWindowAdmin(admin.ModelAdmin):
@@ -122,7 +193,6 @@ class CustomUserAdmin(UserAdmin):
         "email",
         "phone_number",
         "date_of_birth",
-        "organization_name",
         "is_staff",
         "is_active",
     )
@@ -130,7 +200,6 @@ class CustomUserAdmin(UserAdmin):
         "last_name",
         "first_name",
         "email",
-        "organization_name",
         "is_staff",
         "is_active",
     )
@@ -141,9 +210,7 @@ class CustomUserAdmin(UserAdmin):
             "email", 
             "password", 
             "phone_number",
-            "date_of_birth",
-            "organization_name",
-            "organization_description",)}
+            "date_of_birth",)}
         ),
         ("Permissions", {"fields": (
             "is_staff", 
@@ -161,8 +228,6 @@ class CustomUserAdmin(UserAdmin):
             "password2",
             "phone_number",
             "date_of_birth",
-            "organization_name",
-            "organization_description",
             "is_staff",
             "is_active",
             "groups",
@@ -170,13 +235,14 @@ class CustomUserAdmin(UserAdmin):
         ),
     )
     search_fields = (
-        "email", 
-        "first_name", 
-        "last_name", 
-        "phone_number", 
-        "organization_name"
+        "email",
+        "first_name",
+        "last_name",
+        "phone_number",
     )
     ordering = ("email",)
 
 
 admin.site.register(User, CustomUserAdmin)
+admin.site.register(Company)
+admin.site.register(Category)
