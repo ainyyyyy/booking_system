@@ -16,13 +16,15 @@ def user(db):
 @pytest.fixture
 def company(db):
     return Company.objects.create(
-        name = "Company_name"
+        name = "Company_name",
+        slug = "company_name"
     )
 
 @pytest.fixture
 def other_company(db):
     return Company.objects.create(
-        name = "Other_company_name"
+        name = "Other_company_name",
+        slug = "other_company_name"
     )
 
 @pytest.fixture
