@@ -99,10 +99,10 @@ class CustomUserManager(BaseUserManager):
 class User(AbstractUser):
     username = None
     email = models.EmailField(unique=True)
-    phone_number = models.CharField(max_length=15, null=True, blank=True)
+    phone_number = models.CharField(max_length=15, blank=True)
     date_of_birth = models.DateField(null=True, blank=True)
-    organization_name = models.CharField(max_length=100, null=True, blank=True)
-    organization_description = models.TextField(null=True, blank=True)
+    # organization_name = models.CharField(max_length=100, blank=True)
+    # organization_description = models.TextField(blank=True)
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
     objects = CustomUserManager()
@@ -113,12 +113,13 @@ class User(AbstractUser):
 class Company(models.Model):
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True)
-    url = models.URLField(null=True, unique=True)
+    slug = models.SlugField(unique=True, max_length=120)
     logo = models.ImageField(upload_to='media', blank=True)
     is_active = models.BooleanField(default=True)
 
     class Meta:
         app_label = 'easybook'
+        verbose_name_plural = "Companies"
         indexes = [
             models.Index(fields=('is_active',)),
         ]
@@ -193,8 +194,8 @@ class Staff(models.Model):
         blank=True,
     )
     display_name = models.CharField(max_length=100)
-    company_email = models.EmailField(null=True, blank=True)
-    company_phone = models.CharField(max_length=30, null=True, blank=True)
+    company_email = models.EmailField(blank=True)
+    company_phone = models.CharField(max_length=30, blank=True)
     is_active = models.BooleanField(default=True)
 
     def __str__(self) -> str:
@@ -204,6 +205,7 @@ class Staff(models.Model):
 class Category(models.Model):
     class Meta:
         app_label = 'easybook'
+        verbose_name_plural = "Categories"
         indexes = [
             models.Index(fields=('company', 'parent', 'is_active', 'sort_order')),
             # models.Index(fields=('company', 'is_active')),
@@ -230,16 +232,41 @@ class Category(models.Model):
         related_name='children'
     )
     name = models.CharField(max_length=100)
-    slug = models.SlugField(max_length=120)
+    slug = models.SlugField(unique=True, max_length=160)
     description = models.TextField(blank=True)
     # Приоритет - по возрастанию
     sort_order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
 
     def clean(self):
-        # Нельзя назначить в потомки категорию из другой компании
-        if self.parent and self.parent.company != self.company:
-            raise ValidationError('Parent category must belong to the same company.')
+        if (
+            self.parent 
+            and self.parent.company # Preventing 500 Error when company is not set
+            and self.parent.company != self.company
+        ):
+            raise ValidationError(
+                'Parent category must belong to the same company.'
+            )
+
+        if self.parent:
+            self._check_for_cycles()
+
+    def _check_for_cycles(self):
+        if self.parent == self:
+            raise ValidationError(
+                'A category cannot be its own parent.'
+            )
+        visited = set()
+        current = self
+
+        while current is not None:
+            if current.id in visited:
+                raise ValidationError(
+                    'Circular reference detected in category hierarchy. '
+                    'Set another parent.'
+                )
+            visited.add(current.id)
+            current = current.parent
 
     def __str__(self) -> str:
         return f'{self.name} ({self.company})'    
@@ -290,8 +317,8 @@ class Resource(models.Model):
         blank=True,
         related_name='owned_resources',
     )
-    address = models.TextField(blank=True)
-    url = models.URLField(blank=True)
+    # address = models.TextField(blank=True)
+    # url = models.URLField(blank=True)
     # если >1 — один и тот же слот могут занимать несколько человек
     max_capacity = models.PositiveIntegerField(default=1)
     requires_staff = models.BooleanField(default=False)
@@ -301,10 +328,9 @@ class Resource(models.Model):
         null=True, 
         blank=True
     )
-    pricing = models.CharField(
+    pricing_type = models.CharField(
         max_length=20, 
-        choices=Pricing.choices, 
-        null=True, 
+        choices=Pricing.choices,
         blank=True
     )
     # Для акций (при null - акции нет)
@@ -315,6 +341,7 @@ class Resource(models.Model):
         blank=True
     )
     is_active = models.BooleanField(default=True)
+    # is_full_name_required = models.BooleanField(default=False)
     # Список сотрудников, которые оказывают услугу
     staff_members = models.ManyToManyField(
         Staff,
@@ -351,7 +378,10 @@ class ResourceCategory(models.Model):
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
 
     def clean(self):
-        if self.resource.company != self.category.company:
+        if (
+            self.resource_id and self.category_id # Prevents 500 error
+            and self.resource.company != self.category.company
+        ):
             raise ValidationError(
                 'Resource and Category must belong to the same Company.'
             )
@@ -378,7 +408,10 @@ class ResourceStaff(models.Model):
     staff = models.ForeignKey(Staff, on_delete=models.CASCADE)
 
     def clean(self):
-        if self.resource.company != self.staff.company:
+        if (
+            self.resource_id and self.staff_id # Prevents 500 error
+            and self.resource.company != self.staff.company
+        ):
             raise ValidationError(
                 'Resource and Staff must belong to the same Company.'
             )
@@ -557,7 +590,7 @@ class Booking(models.Model):
     timerange = DateTimeRangeField(null=True, blank=True)  # хранит [start, end)
     is_confirmed = models.BooleanField(default=False)
     quantity = models.PositiveIntegerField(default=1)  # сколько мест из capacity заняли
-    additional_info = models.TextField(blank=True, null=True)
+    additional_info = models.TextField(blank=True)
     def clean(self):
         """if self.timerange is None or self.timerange.start is None or self.timerange.end is None:
             raise ValidationError('`timerange` must be set with both start and end times.')
@@ -565,14 +598,14 @@ class Booking(models.Model):
             raise ValidationError('`timerange.start` must be less than `timerange.end`.')
 """
         # Если ресурс требует выбора сотрудника — staff обязателен
-        if self.resource.requires_staff and not self.staff:
+        if self.resource_id and self.resource.requires_staff and not self.staff:
             raise ValidationError(
                 'This resource requires selecting a staff member.'
             )
 
         # Если указан сотрудник — он должен быть из той же компании 
         if self.staff:
-            if self.resource.company != self.staff.company:
+            if self.resource_id and self.resource.company != self.staff.company:
                 raise ValidationError(
                     'Selected staff must belong to the same company' \
                     ' as the resource.'
